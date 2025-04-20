@@ -28,7 +28,7 @@ contract MyERC721 is ERC721 {
     /**
      * @dev This is a mint function that requires a string as an argument-
      * @notice The string is the image URI of the NFT.
-     * The mint send the token to me so it is my property to send the NFT to the winner
+     * The mint send the token to me so it is contract property to send the NFT to the winner
      * 
      */
     function mint(string memory _imagURI) public {
