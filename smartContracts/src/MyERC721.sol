@@ -15,7 +15,7 @@ contract MyERC721 is ERC721 {
      *  2. s_owners is a mapping that stores the owner of each token ID.
      */
     mapping (uint256 id => string) public s_tokenURIs;
-    mapping (uint256 tokenId => address) public s_creators;
+    mapping (uint256 tokenId => address creator) public s_creators;
     mapping (address owner => uint256 tokenIds) public s_creatorsCount;
 
     uint256 public constant MAX_TOKENS = 10;

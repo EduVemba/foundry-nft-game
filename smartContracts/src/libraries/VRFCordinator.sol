@@ -28,7 +28,7 @@ abstract contract VRFCordinator is VRFConsumerBaseV2  {
 
 
 
-    function requestRandomWords() external returns (uint256 requestId) {
+    function requestRandomWords() public returns (uint256 requestId) {
         requestId = COORDINATOR.requestRandomWords(
             keyHash,
             subId,
@@ -38,10 +38,14 @@ abstract contract VRFCordinator is VRFConsumerBaseV2  {
         );
     }
 
+    /**
+     * @dev This function will be used on the NFTgame contract.
+     * @notice VRFCordinator fulfillRandomWords function.
+     */
     function fulfillRandomWords(
         uint256 requestId,
         uint256[] memory randomWords
-    ) internal override {
+    ) internal virtual override {
         lastRandomWord = randomWords[0];
     }
 
