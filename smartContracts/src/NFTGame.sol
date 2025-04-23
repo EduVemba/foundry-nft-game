@@ -3,35 +3,34 @@ pragma solidity ^0.8.0;
 
 import {VRFCordinator} from "./libraries/VRFCordinator.sol";
 import {MyERC721} from "./MyERC721.sol";
-// import {AutomationCompatibleInterface} from "chainlink-brownie-contracts/contracts/src/v0.8/automation/interfaces/AutomationCompatibleInterface.sol";
+import {AutomationCompatibleInterface} from
+    "chainlink-brownie-contracts/contracts/src/v0.8/automation/interfaces/AutomationCompatibleInterface.sol";
 
-
-
-contract NFTGame is VRFCordinator {
-
+contract NFTGame is VRFCordinator, AutomationCompatibleInterface {
     ///////////////////////////////
     ////        ERRORS         ////
     ///////////////////////////////
+
     error NFTGame_GamesNotFound();
     error NFTGame_AlreadyEntered();
     error NFTGame_AlreadyClosed();
     error NFTGAME_ValueNotEqual();
     error NFTGame_TransferFailed();
-
-
+    error NFTGame_NotAuthorized();
 
     ///////////////////////////////
     ////        Enums           ///
     ///////////////////////////////
+
     enum GameStatus {
         OPEN,
         CLOSED
     }
 
-
     ///////////////////////////////
     ////        Structs         ///
     ///////////////////////////////
+
     struct Game {
         uint256 gameId;
         address[] players;
@@ -42,21 +41,21 @@ contract NFTGame is VRFCordinator {
         GameStatus status;
         uint256 startTime;
         uint256 endTime;
+        address winner;
     }
-
 
     ///////////////////////////////
     ////       Variabels        ///
     ///////////////////////////////
+
+    address private immutable i_automationRegistry;
     MyERC721 private s_myERC721;
-    uint256 private s_gameId;
-    address private s_winner;
-    Game[] private s_games;
+    uint256 public s_gameId;
+    Game[] public s_games;
     uint256 public constant VALUE_TO_ENTER = 0.01 ether;
 
-    mapping (address entered => uint256 gameId) private s_enteredGames;
+    mapping(address entered => uint256 gameId) private s_enteredGames;
     mapping(uint256 => uint256) private s_requestIdToGameId;
-
 
     ///////////////////////////////
     ////         Events         ///
@@ -66,11 +65,16 @@ contract NFTGame is VRFCordinator {
     event GameEntered(address indexed player, uint256 indexed gameId, uint256 value);
     event GameEnded(uint256 indexed gameId, address indexed winner, uint256 tokenId);
 
-
-
-
-      constructor(uint64 subId, address nftAddr) VRFCordinator(subId) {
+    constructor(address automationRegistry, uint64 subId, address nftAddr) VRFCordinator(subId) {
+        i_automationRegistry = automationRegistry;
         s_myERC721 = MyERC721(nftAddr);
+    }
+
+    modifier onlyAutomationRegistry() {
+        if (msg.sender != i_automationRegistry) {
+            revert NFTGame_NotAuthorized();
+        }
+        _;
     }
 
     ///////////////////////////////
@@ -78,17 +82,17 @@ contract NFTGame is VRFCordinator {
     ///////////////////////////////
 
     /**
-     * 
+     *
      * @param _imageURI is the image URI of the NFT.
      * @notice The error handling is done in the MyERC721 contract.
      * @dev The function is used to create a new game.
      * The Game only lasts for 1 day and the winner is selected randomly.
-     * 
+     *
      */
     function createGame(string memory _imageURI) external {
         s_gameId++;
-        s_myERC721.mint(_imageURI);
-        Game memory newGame = Game ({
+        s_myERC721.mint(address(this), _imageURI);
+        Game memory newGame = Game({
             gameId: s_gameId,
             players: new address[](0),
             tokenId: s_myERC721.tokenCounter() - 1,
@@ -97,7 +101,8 @@ contract NFTGame is VRFCordinator {
             totalReceived: 0,
             status: GameStatus.OPEN,
             startTime: block.timestamp,
-            endTime: block.timestamp + 1 days
+            endTime: block.timestamp + 1 days,
+            winner: address(0)
         });
         s_games.push(newGame);
 
@@ -105,10 +110,10 @@ contract NFTGame is VRFCordinator {
     }
 
     /**
-     * 
+     *
      * @param _gameId is the id of the game to enter
      * @notice The function is used to enter a game that can only be entered if it is open.
-     * 
+     *
      */
     function enterGame(uint256 _gameId) external payable {
         if (_gameId > s_games.length) {
@@ -134,7 +139,10 @@ contract NFTGame is VRFCordinator {
     ////   internal Functions   ///
     ///////////////////////////////
 
-
+    /**
+     * @notice This is a UpKepp to see if the time of a game has passed
+        then it will call the requestRandomWords() so it ends a game.
+     */
     function checkGameEndAndRequestRandom(uint256 _gameId) external {
         Game storage game = s_games[_gameId];
         if (block.timestamp >= game.endTime && game.status == GameStatus.OPEN) {
@@ -144,27 +152,65 @@ contract NFTGame is VRFCordinator {
         }
     }
 
-
+    /**
+     * @dev This is a VRFCoordinator from chainlink that generates a random number from players is a Game to chose randomly 
+        who is going to win the NFT.
+        @notice If no one entered the game the NFT will go Back to the Creator
+        @notice The creator gets half of the amount of a ETH a Game caugth.
+     */
     function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
-       uint256 gameId = s_requestIdToGameId[requestId];
-       Game storage game = s_games[gameId];
+        uint256 gameId = s_requestIdToGameId[requestId];
+        Game storage game = s_games[gameId];
 
-       if (game.players.length == 0) {
-            s_winner = game.creator;
-       } else {
+        if (game.players.length == 0) {
+            game.winner = game.creator;
+        } else {
             uint256 randomIndex = randomWords[0] % game.players.length;
-            s_winner = game.players[randomIndex];
-     }
-        s_myERC721.safeTransferFrom(address(this), s_winner, game.tokenId);
+            game.winner = game.players[randomIndex];
+        }
+        s_myERC721.transferToken(address(this), game.winner, game.tokenId);
 
         uint256 totalReceived = game.totalReceived;
         uint256 amountForCreator = (totalReceived / 2);
-        (bool success, ) = payable(game.creator).call{value: amountForCreator}("");
+        (bool success,) = payable(game.creator).call{value: amountForCreator}("");
         if (!success) {
             revert NFTGame_TransferFailed();
         }
 
-        emit GameEnded(gameId, s_winner, game.tokenId);
+        emit GameEnded(gameId, game.winner, game.tokenId);
     }
 
+    ///////////////////////////////
+    ////   Automation Functions   /
+    ///////////////////////////////
+
+    function checkUpkeep(bytes calldata) external view override returns (bool upkeepNeeded, bytes memory performData) {
+        for (uint256 i = 0; i < s_games.length; i++) {
+            Game storage game = s_games[i];
+            if (game.status == GameStatus.OPEN && block.timestamp >= game.endTime) {
+                upkeepNeeded = true;
+                performData = abi.encode(i);
+                break;
+            }
+        }
+    }
+
+    function performUpkeep(bytes calldata performData) external override onlyAutomationRegistry {
+        uint256 gameId = abi.decode(performData, (uint256));
+        Game storage game = s_games[gameId];
+
+        if (game.status == GameStatus.OPEN && block.timestamp >= game.endTime) {
+            game.status = GameStatus.CLOSED;
+            uint256 requestId = requestRandomWords(); // salvar requestId + gameId numa mapping
+            s_requestIdToGameId[requestId] = gameId;
+        }
+    }
+
+    ///////////////////////////////
+    ///   View Functions      ///
+    ///////////////////////////////
+
+    function getGame(uint256 _gameId) public view returns (Game memory) {
+        return s_games[_gameId - 1];
+    }
 }
