@@ -1,66 +1,32 @@
-## Foundry
+# NFT Game
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+    This is an NFT Game that lets users send NFTs so it can be sended Randomly to the ones on NFT pool and make creators make money of their creation.
 
-Foundry consists of:
+   ## Functions
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+   Principal functions:
 
-## Documentation
+   ```shell
+        function createGame(string memory _imageURI);
 
-https://book.getfoundry.sh/
+        function enterGame(uint256 _gameId);
+   ``` 
+   ⚠️ The others function are Openzeppelin ERC721 overrided and Chainlink VRF and UpKepp Automation for random winner and Auto-Game closure.
 
-## Usage
 
-### Build
+   # TODO:
+     1- Unit Tests;
+     2- Integration Tests;
+     3- Deployable;
+     4- Web for Interaction.
+        1- Ethers.js;
+        2- wallet connection;
+        3- interface for game interaction.
+            1- create;
+            2- enter.
 
-```shell
-$ forge build
-```
-
-### Test
-
-```shell
-$ forge test
-```
-
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+   # Tech stack
+    Solidity + Foundry
+    Chainlink VRF + Automation
+    OpenZeppelin Contracts (ERC721)
+    Ethers.js + HTML/CSS
