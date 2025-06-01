@@ -5,8 +5,10 @@ import {VRFCordinator} from "./libraries/VRFCordinator.sol";
 import {MyERC721} from "./MyERC721.sol";
 import {AutomationCompatibleInterface} from
     "chainlink-brownie-contracts/contracts/src/v0.8/automation/interfaces/AutomationCompatibleInterface.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
-contract NFTGame is VRFCordinator, AutomationCompatibleInterface {
+contract NFTGame is VRFCordinator, AutomationCompatibleInterface, IERC721Receiver  {
+
     ///////////////////////////////
     ////        ERRORS         ////
     ///////////////////////////////
@@ -75,6 +77,22 @@ contract NFTGame is VRFCordinator, AutomationCompatibleInterface {
             revert NFTGame_NotAuthorized();
         }
         _;
+    }
+
+    /**
+     * @dev This is a function that is used to receive NFTs.
+     * @notice The function is used to receive NFTs.
+     * @dev The function is used to receive NFTs.
+     * @dev The function is used to receive NFTs.
+     * @dev The function is used to receive NFTs.
+     */
+    function onERC721Received(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) external override returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 
     ///////////////////////////////

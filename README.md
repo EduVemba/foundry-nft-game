@@ -1,6 +1,6 @@
 # NFT Game
 
-    This is an NFT Game that lets users send NFTs so it can be sended Randomly to the ones on NFT pool and make creators make money of their creation.
+  This is an NFT Game that lets users send NFTs so it can be sended Randomly to the ones on NFT pool and make creators make money of their creation.
 
    ## Functions
 

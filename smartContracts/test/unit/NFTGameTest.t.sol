@@ -9,7 +9,7 @@ import {NFTReceiverMock} from "./mock/NFTReceiverMock.sol";
 contract NFTGameTest is Test {
     NFTGame public game;
     MyERC721 public nft;
-    // NFTReceiverMock public creatorMock;
+    NFTReceiverMock public receiverMock;
 
     address public player1 = address(2);
     address public automation = address(3);
@@ -17,23 +17,93 @@ contract NFTGameTest is Test {
 
     function setUp() public {
         nft = new MyERC721();
-        //creatorMock = new NFTReceiverMock();
+        receiverMock = new NFTReceiverMock();
         game = new NFTGame(automation, subId, address(nft));
     }
 
-    // TODO: Only the mockContract can receive an NFT
     function testCreateGame() public {
-        
         string memory imageURI = "ipfs://my-image";
         game.createGame(imageURI);
 
-        
         NFTGame.Game memory createdGame = game.getGame(1);
         assertEq(createdGame.creator, address(this));
-        assertEq(createdGame.imageURI, imageURI); 
+        assertEq(createdGame.imageURI, imageURI);
 
-        
         uint256 tokenId = createdGame.tokenId;
-        assertEq(nft.ownerOf(tokenId), address(game)); 
+        assertEq(nft.ownerOf(tokenId), address(game));
+    }
+
+    
+    function testTransferNFTToMock() public {
+        string memory imageURI = "ipfs://my-image";
+        game.createGame(imageURI);
+        
+        NFTGame.Game memory createdGame = game.getGame(1);
+        uint256 tokenId = createdGame.tokenId;
+        
+        assertEq(nft.ownerOf(tokenId), address(game));
+
+        vm.prank(address(game));
+        nft.transferFrom(address(game), address(receiverMock), tokenId);
+
+        assertEq(nft.ownerOf(tokenId), address(receiverMock));
+    }
+
+    // TODO: FIX
+    function testEnterGame() public {
+        string memory imageURI = "ipfs://my-image";
+        game.createGame(imageURI);
+        
+        vm.deal(player1, 1 ether);
+        vm.prank(player1);
+        game.enterGame{value: 0.01 ether}(1);
+        
+        NFTGame.Game memory gameAfterEntry = game.getGame(1);
+        assertEq(gameAfterEntry.players.length, 1);
+        assertEq(gameAfterEntry.players[0], player1);
+        assertEq(gameAfterEntry.totalReceived, 0.01 ether);
+    }
+
+    function testEnterGameWithWrongValue() public {
+        string memory imageURI = "ipfs://my-image";
+        game.createGame(imageURI);
+        
+        vm.deal(player1, 1 ether);
+        vm.prank(player1);
+        
+        vm.expectRevert(abi.encodeWithSignature("NFTGAME_ValueNotEqual()"));
+        game.enterGame{value: 0.02 ether}(1);
+    }
+
+    // TODO: FIX
+    function testCannotEnterTwice() public {
+        string memory imageURI = "ipfs://my-image";
+        game.createGame(imageURI);
+        
+        vm.deal(player1, 1 ether);
+        vm.startPrank(player1);
+        
+        game.enterGame{value: 0.01 ether}(1);
+        
+        vm.expectRevert(abi.encodeWithSignature("NFTGame_AlreadyEntered()"));
+        game.enterGame{value: 0.01 ether}(1);
+        
+        vm.stopPrank();
+    }
+
+    // TODO: FIX
+    function testGameEndWithMockAsWinner() public {
+        string memory imageURI = "ipfs://my-image";
+        game.createGame(imageURI);
+        
+        NFTGame.Game memory createdGame = game.getGame(1);
+        uint256 tokenId = createdGame.tokenId;
+ 
+        vm.prank(address(game));
+        nft.transferFrom(address(game), address(receiverMock), tokenId);
+        
+        assertEq(nft.ownerOf(tokenId), address(receiverMock));
+        
+        assertTrue(address(receiverMock).code.length > 0);
     }
 }
