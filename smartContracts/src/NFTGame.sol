@@ -87,11 +87,11 @@ contract NFTGame is VRFCordinator, AutomationCompatibleInterface, IERC721Receive
      * @dev The function is used to receive NFTs.
      */
     function onERC721Received(
-        address operator,
-        address from,
-        uint256 tokenId,
-        bytes calldata data
-    ) external override returns (bytes4) {
+        address,
+        address,
+        uint256,
+        bytes calldata 
+    ) external pure override returns (bytes4) {
         return this.onERC721Received.selector;
     }
 
@@ -134,15 +134,17 @@ contract NFTGame is VRFCordinator, AutomationCompatibleInterface, IERC721Receive
      *
      */
     function enterGame(uint256 _gameId) external payable {
-        if (_gameId > s_games.length) {
+        if (_gameId >= s_games.length) {
             revert NFTGame_GamesNotFound();
         }
         if (s_games[_gameId].status == GameStatus.CLOSED) {
             revert NFTGame_AlreadyClosed();
         }
-        if (s_enteredGames[msg.sender] == _gameId) {
-            revert NFTGame_AlreadyEntered();
-        }
+        for (uint256 i = 0; i < s_games[_gameId].players.length; i++) {
+            if (s_games[_gameId].players[i] == msg.sender) {
+                revert NFTGame_AlreadyEntered();
+            }
+    }
         if (msg.value != VALUE_TO_ENTER) {
             revert NFTGAME_ValueNotEqual();
         }
@@ -229,6 +231,6 @@ contract NFTGame is VRFCordinator, AutomationCompatibleInterface, IERC721Receive
     ///////////////////////////////
 
     function getGame(uint256 _gameId) public view returns (Game memory) {
-        return s_games[_gameId - 1];
+        return s_games[_gameId];
     }
 }
